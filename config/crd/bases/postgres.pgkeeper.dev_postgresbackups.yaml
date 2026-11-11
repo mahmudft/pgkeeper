@@ -1,0 +1,95 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: postgresbackups.postgres.pgkeeper.dev
+spec:
+  group: postgres.pgkeeper.dev
+  names:
+    categories:
+    - pgkeeper
+    kind: PostgresBackup
+    listKind: PostgresBackupList
+    plural: postgresbackups
+    shortNames:
+    - pgb
+    - pgbackup
+    singular: postgresbackup
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.cluster
+      name: Cluster
+      type: string
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.objectKey
+      name: Object
+      priority: 1
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: PostgresBackup is the Schema for the postgresbackups API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: PostgresBackupSpec defines a one-off logical backup of a
+              PostgresCluster.
+            properties:
+              cluster:
+                description: Name of the PostgresCluster in the same namespace.
+                minLength: 1
+                type: string
+                x-kubernetes-validations:
+                - message: cluster is immutable
+                  rule: self == oldSelf
+            required:
+            - cluster
+            type: object
+          status:
+            description: PostgresBackupStatus defines the observed state of PostgresBackup.
+            properties:
+              completedAt:
+                format: date-time
+                type: string
+              jobName:
+                type: string
+              message:
+                type: string
+              objectKey:
+                description: Object key of the backup inside the bucket.
+                type: string
+              phase:
+                type: string
+              startedAt:
+                format: date-time
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
