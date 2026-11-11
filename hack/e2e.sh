@@ -14,9 +14,13 @@ fail() { printf '\033[1;31mFAIL: %s\033[0m\n' "$*"; dump; exit 1; }
 
 dump() {
   step "Debug output"
-  kubectl get pgc,pgb,sts,pods,jobs,pvc -o wide || true
-  kubectl describe pgc || true
-  kubectl get events --sort-by=.lastTimestamp | tail -n 40 || true
+  kubectl get pods -A -o wide || true
+  kubectl get pgc,pgb,sts,jobs,pvc -o wide 2>/dev/null || true
+  kubectl -n minio describe pods || true
+  kubectl -n minio logs deploy/minio --tail=50 || true
+  kubectl -n "$OPERATOR_NS" describe pods || true
+  kubectl describe pgc 2>/dev/null || true
+  kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
   kubectl -n "$OPERATOR_NS" logs deploy/pgkeeper --tail=200 || true
   for p in $(kubectl get pods -o name); do
     echo "--- logs $p"
