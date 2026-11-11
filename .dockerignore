@@ -1,0 +1,7 @@
+bin/
+charts/
+config/
+hack/
+.github/
+*.md
+cover.out

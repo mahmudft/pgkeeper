@@ -1,0 +1,6 @@
+pgkeeper is installed in namespace {{ .Release.Namespace }}.
+
+Create a cluster:
+
+  kubectl apply -f https://raw.githubusercontent.com/mahmudft/pgkeeper/main/config/samples/postgres_v1alpha1_postgrescluster.yaml
+  kubectl get pgc -w

@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}-metrics
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "pgkeeper.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+{{- if .Values.metrics.serviceMonitor.enabled }}
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "pgkeeper.labels" . | nindent 6 }}
+  endpoints:
+    - port: metrics
+      interval: {{ .Values.metrics.serviceMonitor.interval }}
+{{- end }}

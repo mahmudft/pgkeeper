@@ -1,0 +1,30 @@
+apiVersion: postgres.pgkeeper.dev/v1alpha1
+kind: PostgresCluster
+metadata:
+  name: demo
+spec:
+  version: "16"
+  instances: 2
+  storage:
+    size: 1Gi
+  database:
+    name: shop
+    owner: shop
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+  monitoring:
+    enableExporter: true
+  backup:
+    schedule: "0 */6 * * *"
+    retentionDays: 7
+    historyLimit: 5
+    s3:
+      endpoint: http://minio.minio.svc:9000
+      bucket: pg-backups
+      path: pgkeeper
+      credentialsSecret:
+        name: s3-credentials

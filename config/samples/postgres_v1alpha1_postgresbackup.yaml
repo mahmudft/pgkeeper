@@ -1,0 +1,6 @@
+apiVersion: postgres.pgkeeper.dev/v1alpha1
+kind: PostgresBackup
+metadata:
+  name: demo-manual
+spec:
+  cluster: demo

@@ -1,0 +1,9 @@
+apiVersion: v2
+name: pgkeeper
+description: A Kubernetes operator for PostgreSQL clusters with streaming replicas and S3 backups.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords: [postgres, postgresql, operator, backup]
+home: https://github.com/mahmudft/pgkeeper
+sources: [https://github.com/mahmudft/pgkeeper]

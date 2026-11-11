@@ -1,0 +1,92 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    name: generated files
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      sha: ${{ steps.commit.outputs.sha }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Tidy modules and regenerate code and manifests
+        run: |
+          go mod tidy
+          make generate manifests
+      - name: Commit changes on main, fail elsewhere
+        id: commit
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            git status --porcelain
+            if [ "${{ github.event_name }}" = "pull_request" ]; then
+              git diff
+              echo "::error::Generated files are out of date. Run 'go mod tidy && make generate manifests' and commit."
+              exit 1
+            fi
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add -A
+            git commit -m "chore: update generated files"
+            git push
+          fi
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+  test:
+    name: lint and unit tests
+    needs: generate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.generate.outputs.sha }}
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -d . && exit 1)
+      - run: make test
+      - run: go build ./...
+      - name: kustomize build
+        run: make kustomize && bin/kustomize build config/default > /dev/null
+      - uses: azure/setup-helm@v4
+      - name: helm lint
+        run: |
+          helm lint charts/pgkeeper
+          helm template pgkeeper charts/pgkeeper > /dev/null
+
+  e2e:
+    name: e2e on kind
+    needs: [generate, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.generate.outputs.sha }}
+      - uses: azure/setup-helm@v4
+      - uses: helm/kind-action@v1
+        with:
+          cluster_name: pgkeeper
+      - name: Build and load image
+        run: |
+          docker build -t pgkeeper:e2e .
+          kind load docker-image pgkeeper:e2e --name pgkeeper
+      - name: Run e2e
+        run: IMG=pgkeeper:e2e bash hack/e2e.sh

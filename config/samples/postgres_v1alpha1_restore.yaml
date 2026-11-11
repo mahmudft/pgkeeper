@@ -1,0 +1,24 @@
+# Creates a new cluster from a backup taken from "demo".
+# Replace objectKey with the value of `kubectl get pgb demo-manual -o jsonpath='{.status.objectKey}'`.
+apiVersion: postgres.pgkeeper.dev/v1alpha1
+kind: PostgresCluster
+metadata:
+  name: demo-restored
+spec:
+  version: "16"
+  instances: 1
+  storage:
+    size: 1Gi
+  database:
+    name: shop
+    owner: shop
+  backup:
+    s3:
+      endpoint: http://minio.minio.svc:9000
+      bucket: pg-backups
+      path: pgkeeper
+      credentialsSecret:
+        name: s3-credentials
+  bootstrap:
+    fromBackup:
+      objectKey: pgkeeper/default/demo/demo-manual.sql.gz

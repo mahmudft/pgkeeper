@@ -1,0 +1,78 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["postgres.pgkeeper.dev"]
+    resources: ["postgresclusters", "postgresbackups"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["postgres.pgkeeper.dev"]
+    resources: ["postgresclusters/status", "postgresbackups/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: ["postgres.pgkeeper.dev"]
+    resources: ["postgresclusters/finalizers", "postgresbackups/finalizers"]
+    verbs: ["update"]
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["services", "secrets", "configmaps"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ include "pgkeeper.fullname" . }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "pgkeeper.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}-leader-election
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}-leader-election
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "pgkeeper.fullname" . }}-leader-election
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "pgkeeper.fullname" . }}
+    namespace: {{ .Release.Namespace }}

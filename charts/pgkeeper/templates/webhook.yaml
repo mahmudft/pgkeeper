@@ -1,0 +1,63 @@
+{{- if .Values.webhook.enabled }}
+{{- $svc := include "pgkeeper.webhookService" . }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $svc }}
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+spec:
+  selector:
+    {{- include "pgkeeper.selectorLabels" . | nindent 4 }}
+  ports:
+    - port: 443
+      targetPort: webhook
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}-selfsigned
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+spec:
+  selfSigned: {}
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}-webhook
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+spec:
+  secretName: {{ include "pgkeeper.fullname" . }}-webhook-cert
+  dnsNames:
+    - {{ $svc }}.{{ .Release.Namespace }}.svc
+    - {{ $svc }}.{{ .Release.Namespace }}.svc.cluster.local
+  issuerRef:
+    kind: Issuer
+    name: {{ include "pgkeeper.fullname" . }}-selfsigned
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ include "pgkeeper.fullname" . }}
+  labels:
+    {{- include "pgkeeper.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "pgkeeper.fullname" . }}-webhook
+webhooks:
+  - name: vpostgrescluster-v1alpha1.pgkeeper.dev
+    admissionReviewVersions: ["v1"]
+    sideEffects: None
+    failurePolicy: Fail
+    clientConfig:
+      service:
+        name: {{ $svc }}
+        namespace: {{ .Release.Namespace }}
+        path: /validate-postgres-pgkeeper-dev-v1alpha1-postgrescluster
+    rules:
+      - apiGroups: ["postgres.pgkeeper.dev"]
+        apiVersions: ["v1alpha1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["postgresclusters"]
+{{- end }}
