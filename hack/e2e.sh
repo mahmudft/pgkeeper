@@ -78,7 +78,8 @@ spec:
       credentialsSecret: {name: s3-credentials}
 EOF
 }
-check_rejected() { invalid | grep -q "spec.backup.schedule"; }
+# Capture the output first: with pipefail, the expected kubectl failure would fail the pipe.
+check_rejected() { local out; out=$(invalid || true); grep -q "spec.backup.schedule" <<<"$out"; }
 retry 30 check_rejected || fail "webhook did not reject the invalid cluster"
 
 step "Creating cluster demo (2 instances)"
