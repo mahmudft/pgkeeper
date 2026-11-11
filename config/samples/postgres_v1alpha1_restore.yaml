@@ -14,7 +14,7 @@ spec:
     owner: shop
   backup:
     s3:
-      endpoint: http://minio.minio.svc:9000
+      endpoint: http://s3.s3.svc:8333
       bucket: pg-backups
       path: pgkeeper
       credentialsSecret:

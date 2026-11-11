@@ -23,7 +23,7 @@ spec:
     retentionDays: 7
     historyLimit: 5
     s3:
-      endpoint: http://minio.minio.svc:9000
+      endpoint: http://s3.s3.svc:8333
       bucket: pg-backups
       path: pgkeeper
       credentialsSecret:

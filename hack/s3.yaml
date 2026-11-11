@@ -1,0 +1,65 @@
+# Single-node SeaweedFS with its S3 gateway, for local demos and e2e tests.
+# No authentication is configured, so any access key works. Not for production.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: s3
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: s3
+  namespace: s3
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: s3}
+  template:
+    metadata:
+      labels: {app: s3}
+    spec:
+      containers:
+        - name: seaweedfs
+          image: chrislusf/seaweedfs:latest
+          args: ["server", "-dir=/data", "-s3", "-s3.port=8333", "-ip.bind=0.0.0.0"]
+          ports:
+            - containerPort: 8333
+          readinessProbe:
+            tcpSocket: {port: 8333}
+            periodSeconds: 5
+          volumeMounts:
+            - {name: data, mountPath: /data}
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: s3
+  namespace: s3
+spec:
+  selector: {app: s3}
+  ports:
+    - {port: 8333, targetPort: 8333}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: create-bucket
+  namespace: s3
+spec:
+  backoffLimit: 20
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: mb
+          image: amazon/aws-cli:2.27.0
+          command: ["/bin/bash", "-c"]
+          args:
+            - aws --endpoint-url http://s3.s3.svc:8333 s3 mb s3://pg-backups || aws --endpoint-url http://s3.s3.svc:8333 s3 ls s3://pg-backups
+          env:
+            - {name: AWS_ACCESS_KEY_ID, value: demo}
+            - {name: AWS_SECRET_ACCESS_KEY, value: demo-secret}
+            - {name: AWS_DEFAULT_REGION, value: us-east-1}

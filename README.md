@@ -19,7 +19,7 @@ spec:
   backup:
     schedule: "0 */6 * * *"
     s3:
-      endpoint: http://minio.minio.svc:9000
+      endpoint: http://s3.s3.svc:8333
       bucket: pg-backups
       credentialsSecret:
         name: s3-credentials
@@ -37,7 +37,7 @@ demo   16        2           2       Ready   3m
 - **Streaming replicas.** Instance 0 is the primary. Other instances are cloned with `pg_basebackup` and follow it as hot standbys. Scaling `spec.instances` adds or removes replicas.
 - **Connection services.** `<name>-rw` always points at the primary. `<name>-ro` balances across all instances.
 - **Credentials.** The `<name>-app` secret holds `username`, `password`, `dbname`, `host`, `port` and a ready-to-use `uri`.
-- **Backups.** A `PostgresBackup` runs `pg_dumpall` and uploads the gzipped dump to S3, MinIO or any S3-compatible storage.
+- **Backups.** A `PostgresBackup` runs `pg_dumpall` and uploads the gzipped dump to AWS S3 or any S3-compatible storage (MinIO, SeaweedFS, Ceph RGW).
   - Scheduled backups use a cron expression. Each run creates a `PostgresBackup` object, so the history is visible with `kubectl get pgb`.
   - Retention works at two levels: S3 objects older than `retentionDays` are removed, and only `historyLimit` backup objects are kept in the cluster.
 - **Restore.** `spec.bootstrap.fromBackup` creates a new cluster from a backup object.
@@ -61,7 +61,7 @@ flowchart LR
     ctrl -- cron schedule --> pgb[PostgresBackup]
     pgb --> ctrl
     ctrl --> job[Backup Job<br/>pg_dumpall → S3]
-    job --> s3[(S3 / MinIO)]
+    job --> s3[(S3-compatible storage)]
     s3 --> restore[Restore Job] --> sts2[New cluster]
 ```
 
@@ -83,8 +83,8 @@ kind create cluster --name pgkeeper
 kubectl apply -f https://github.com/cert-manager/cert-manager/releases/download/v1.17.2/cert-manager.yaml
 kubectl -n cert-manager wait deploy --all --for=condition=Available --timeout=300s
 
-# demo object storage
-kubectl apply -f hack/minio.yaml
+# demo S3-compatible object storage (SeaweedFS)
+kubectl apply -f hack/s3.yaml
 
 # build and install the operator
 docker build -t pgkeeper:dev .
@@ -169,7 +169,7 @@ internal/webhook/      validating admission webhook
 cmd/main.go            manager entrypoint
 charts/pgkeeper/       Helm chart
 config/                kustomize manifests and samples
-hack/                  e2e script and demo MinIO
+hack/                  e2e script and demo S3 store
 ```
 
 ## Limitations and roadmap

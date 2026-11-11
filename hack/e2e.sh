@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end test: installs cert-manager, MinIO and the operator into the current
+# End-to-end test: installs cert-manager, a demo S3 store and the operator into the current
 # kube context, then checks replication, backup and restore.
 set -euo pipefail
 
@@ -16,8 +16,8 @@ dump() {
   step "Debug output"
   kubectl get pods -A -o wide || true
   kubectl get pgc,pgb,sts,jobs,pvc -o wide 2>/dev/null || true
-  kubectl -n minio describe pods || true
-  kubectl -n minio logs deploy/minio --tail=50 || true
+  kubectl -n s3 describe pods || true
+  kubectl -n s3 logs deploy/s3 --tail=50 || true
   kubectl -n "$OPERATOR_NS" describe pods || true
   kubectl describe pgc 2>/dev/null || true
   kubectl get events -A --sort-by=.lastTimestamp | tail -n 60 || true
@@ -48,10 +48,10 @@ step "Installing cert-manager ${CERT_MANAGER_VERSION}"
 kubectl apply -f "https://github.com/cert-manager/cert-manager/releases/download/${CERT_MANAGER_VERSION}/cert-manager.yaml"
 kubectl -n cert-manager wait deploy --all --for=condition=Available --timeout=300s
 
-step "Installing MinIO"
-kubectl apply -f hack/minio.yaml
-kubectl -n minio rollout status deploy/minio --timeout=300s
-kubectl -n minio wait job/create-bucket --for=condition=Complete --timeout=300s
+step "Installing a demo S3 store"
+kubectl apply -f hack/s3.yaml
+kubectl -n s3 rollout status deploy/s3 --timeout=300s
+kubectl -n s3 wait job/create-bucket --for=condition=Complete --timeout=300s
 
 step "Installing the operator (${IMG})"
 helm upgrade --install pgkeeper charts/pgkeeper \
@@ -73,7 +73,7 @@ spec:
   backup:
     schedule: "every day"
     s3:
-      endpoint: http://minio.minio.svc:9000
+      endpoint: http://s3.s3.svc:8333
       bucket: pg-backups
       credentialsSecret: {name: s3-credentials}
 EOF
